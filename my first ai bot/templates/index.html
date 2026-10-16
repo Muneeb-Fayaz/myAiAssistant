@@ -1,0 +1,343 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>Muneeb AI | Personal Assistant</title>
+
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            font-family: Arial, sans-serif;
+            background: #10131c;
+            color: #f4f5fa;
+        }
+
+        .app {
+            width: 100%;
+            max-width: 900px;
+            height: 100vh;
+            height: 100dvh;
+            margin: auto;
+            display: flex;
+            flex-direction: column;
+            padding: 14px;
+        }
+
+        header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            background: #191e2b;
+            padding: 15px;
+            border-radius: 16px;
+        }
+
+        .logo {
+            background: #6554d9;
+            border-radius: 12px;
+            padding: 14px;
+            font-weight: bold;
+            font-size: 18px;
+        }
+
+        .heading {
+            flex: 1;
+        }
+
+        h1 {
+            font-size: 20px;
+            margin: 0 0 5px;
+        }
+
+        .status {
+            margin: 0;
+            font-size: 12px;
+            color: #4ade80;
+        }
+
+        button {
+            border: none;
+            border-radius: 10px;
+            padding: 12px 15px;
+            cursor: pointer;
+            background: #6554d9;
+            color: white;
+            font-size: 14px;
+        }
+
+        button:disabled {
+            opacity: 0.55;
+            cursor: not-allowed;
+        }
+
+        #clear {
+            background: #303747;
+        }
+
+        #chat {
+            flex: 1;
+            overflow-y: auto;
+            padding: 18px 3px;
+        }
+
+        .message {
+            max-width: 85%;
+            padding: 14px;
+            margin: 12px 0;
+            border-radius: 15px;
+            line-height: 1.6;
+            white-space: pre-wrap;
+            overflow-wrap: anywhere;
+        }
+
+        .bot {
+            background: #252c3b;
+            border-bottom-left-radius: 4px;
+        }
+
+        .user {
+            background: #6554d9;
+            margin-left: auto;
+            border-bottom-right-radius: 4px;
+        }
+
+        .sender {
+            font-size: 11px;
+            font-weight: bold;
+            margin-bottom: 7px;
+            opacity: 0.75;
+        }
+
+        #chat-form {
+            display: flex;
+            gap: 10px;
+            padding: 12px;
+            background: #191e2b;
+            border-radius: 14px;
+        }
+
+        textarea {
+            flex: 1;
+            min-width: 0;
+            resize: none;
+            min-height: 45px;
+            max-height: 120px;
+            border: none;
+            outline: none;
+            border-radius: 10px;
+            padding: 13px;
+            background: #252c3b;
+            color: white;
+            font: inherit;
+        }
+
+        footer {
+            text-align: center;
+            color: #a4adbf;
+            font-size: 12px;
+            padding: 12px 0 3px;
+        }
+
+        @media (max-width: 500px) {
+            .app {
+                padding: 7px;
+            }
+
+            header {
+                padding: 11px;
+                gap: 8px;
+            }
+
+            h1 {
+                font-size: 17px;
+            }
+
+            .message {
+                max-width: 95%;
+            }
+
+            button {
+                padding: 11px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <main class="app">
+
+        <header>
+            <div class="logo">AI</div>
+
+            <div class="heading">
+                <h1>Muneeb AI</h1>
+                <p class="status">● Personal AI Assistant</p>
+            </div>
+
+            <button id="clear" type="button">Clear</button>
+        </header>
+
+        <section id="chat" aria-live="polite">
+            <div class="message bot">
+                <div class="sender">MUNEEB AI</div>
+                Hello! I am Muneeb AI. Ask me anything!
+            </div>
+        </section>
+
+        <form id="chat-form">
+            <textarea
+                id="message"
+                placeholder="Ask me anything..."
+                maxlength="2000"
+                aria-label="Your message"
+                required
+            ></textarea>
+
+            <button id="send" type="submit">Send ➤</button>
+        </form>
+
+        <footer>
+            Powered by Python + Ollama · AI can make mistakes
+        </footer>
+
+    </main>
+
+    <script>
+        const chat = document.getElementById("chat");
+        const form = document.getElementById("chat-form");
+        const input = document.getElementById("message");
+        const send = document.getElementById("send");
+        const clear = document.getElementById("clear");
+
+        let busy = false;
+
+        function addMessage(sender, text, type) {
+            const bubble = document.createElement("div");
+            bubble.className = "message " + type;
+
+            const name = document.createElement("div");
+            name.className = "sender";
+            name.textContent = sender.toUpperCase();
+
+            const content = document.createElement("div");
+            content.textContent = text;
+
+            bubble.append(name, content);
+            chat.appendChild(bubble);
+
+            chat.scrollTop = chat.scrollHeight;
+
+            return bubble;
+        }
+
+        form.addEventListener("submit", async function(event) {
+            event.preventDefault();
+
+            const message = input.value.trim();
+
+            if (!message || busy) return;
+
+            busy = true;
+            input.value = "";
+            send.disabled = true;
+            clear.disabled = true;
+            send.textContent = "...";
+
+            addMessage("You", message, "user");
+
+            const loading = addMessage(
+                "Muneeb AI",
+                "Thinking... Please wait.",
+                "bot"
+            );
+
+            try {
+                const response = await fetch("/chat", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify({
+                        message: message
+                    })
+                });
+
+                const data = await response.json();
+
+                loading.lastChild.textContent = response.ok
+                    ? data.reply
+                    : (data.error || "Something went wrong.");
+
+            } catch (error) {
+                loading.lastChild.textContent =
+                    "Cannot connect to the server. Please try again.";
+            } finally {
+                busy = false;
+                send.disabled = false;
+                clear.disabled = false;
+                send.textContent = "Send ➤";
+                input.focus();
+                chat.scrollTop = chat.scrollHeight;
+            }
+        });
+
+        input.addEventListener("input", function() {
+            input.style.height = "auto";
+            input.style.height =
+                Math.min(input.scrollHeight, 120) + "px";
+        });
+
+        input.addEventListener("keydown", function(event) {
+            if (
+                event.key === "Enter" &&
+                !event.shiftKey &&
+                !event.isComposing
+            ) {
+                event.preventDefault();
+                form.requestSubmit();
+            }
+        });
+
+        clear.addEventListener("click", async function() {
+            if (busy) return;
+
+            clear.disabled = true;
+
+            try {
+                const response = await fetch("/clear", {
+                    method: "POST"
+                });
+
+                if (!response.ok) {
+                    throw new Error("Could not clear chat.");
+                }
+
+                chat.replaceChildren();
+
+                addMessage(
+                    "Muneeb AI",
+                    "Chat cleared! What would you like to ask?",
+                    "bot"
+                );
+            } catch (error) {
+                addMessage(
+                    "Muneeb AI",
+                    "Unable to clear the chat. Please try again.",
+                    "bot"
+                );
+            } finally {
+                clear.disabled = false;
+            }
+        });
+
+        input.focus();
+    </script>
+</body>
+</html>
